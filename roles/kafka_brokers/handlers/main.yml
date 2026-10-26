@@ -1,0 +1,7 @@
+---
+- name: Restart kafka broker
+  community.docker.docker_container:
+    name: "kafka-broker-{{ broker_id }}"
+    image: "{{ kafka_image }}"
+    state: started
+    restart: true

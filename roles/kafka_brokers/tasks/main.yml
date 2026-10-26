@@ -1,0 +1,8 @@
+---
+- name: Exécuter la configuration de migration Dual-Bridge
+  ansible.builtin.include_tasks: migration_dual.yml
+  when: migration_phase | default('dual') == 'dual'
+
+- name: Exécuter la configuration KRaft pure
+  ansible.builtin.include_tasks: kraft_pure.yml
+  when: migration_phase | default('dual') == 'kraft_pure'

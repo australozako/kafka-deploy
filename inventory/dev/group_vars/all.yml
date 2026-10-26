@@ -1,0 +1,12 @@
+kafka_image: "docker.io/confluentinc/cp-kafka:7.9.0"
+cluster_id: "DEV-4L62215-QC20p4m13R8O9g"
+
+# IP de la passerelle Docker WSL2 (docker0) pour joindre ZooKeeper sur l'hôte
+zk_connect: "172.17.0.1:2181"
+
+# Mapping exact des ports hôtes des 3 contrôleurs KRaft (9093, 9094, 9095)
+controller_quorum_voters: "1@172.17.0.1:9093,2@172.17.0.1:9094,3@172.17.0.1:9095"
+
+# Développement local en PLAINTEXT
+kafka_security_protocol: "PLAINTEXT"
+kafka_ssl_enabled: false

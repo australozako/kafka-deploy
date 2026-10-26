@@ -1,0 +1,27 @@
+process.roles=controller
+node.id={{ node_id }}
+controller.quorum.voters={{ controller_quorum_voters }}
+
+# Écoute interne dans le conteneur (port fixe 9093)
+listeners=CONTROLLER://0.0.0.0:9093
+
+# Port exposé sur l'hôte WSL2 (node_id 1 -> 9093, node_id 2 -> 9094, node_id 3 -> 9095)
+advertised.listeners=CONTROLLER://172.17.0.1:{{ 9092 + (node_id | int) }}
+
+controller.listener.names=CONTROLLER
+listeners.security.protocol.map=CONTROLLER:PLAINTEXT
+
+# Interconnexion et migration ZooKeeper
+zookeeper.connect={{ zk_connect }}
+zookeeper.metadata.migration.enable=true
+
+log.dirs=/var/lib/kafka/data
+
+{% if kafka_ssl_enabled %}
+ssl.keystore.location={{ ssl_cert_dir }}/kafka.controller.keystore.jks
+ssl.keystore.password={{ ssl_keystore_password }}
+ssl.key.password={{ ssl_keystore_password }}
+ssl.truststore.location={{ ssl_cert_dir }}/kafka.truststore.jks
+ssl.truststore.password={{ ssl_truststore_password }}
+ssl.client.auth=required
+{% endif %}

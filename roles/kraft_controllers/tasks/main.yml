@@ -1,0 +1,63 @@
+---
+- name: Créer le répertoire de configuration KRaft
+  ansible.builtin.file:
+    path: "/var/lib/kraft"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Créer le répertoire des secrets SSL (si SSL activé)
+  ansible.builtin.file:
+    path: "/var/lib/kraft/secrets"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  when: kafka_ssl_enabled
+
+- name: Créer les répertoires de configuration et de données KRaft
+  ansible.builtin.file:
+    path: "/var/lib/kraft/node-{{ node_id }}/data"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: '0777'
+    recurse: yes
+
+- name: Générer le fichier de configuration kraft-controller.properties
+  ansible.builtin.template:
+    src: "kraft-controller.properties.j2"
+    dest: "/var/lib/kraft/node-{{ node_id }}/kraft-controller.properties"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart kraft controller
+
+- name: Déployer et démarrer le conteneur Contrôleur KRaft
+  community.docker.docker_container:
+    name: "kraft-controller-{{ node_id }}"
+    image: "{{ kafka_image }}"
+    state: started
+    restart_policy: unless-stopped
+    published_ports:
+      - "{{ 9092 + (node_id | int) }}:9093"
+    # network_mode: host
+    volumes: >-
+      {{
+        [
+          '/var/lib/kraft/node-' ~ node_id ~ '/data:/var/lib/kafka/data',
+          '/var/lib/kraft/node-' ~ node_id ~ '/kraft-controller.properties:/etc/kafka/kraft-controller.properties:ro'
+        ] + (
+          ['/var/lib/kraft/secrets:' ~ ssl_cert_dir ~ ':ro'] if kafka_ssl_enabled else []
+        )
+      }}
+    env:
+      KAFKA_CLUSTER_ID: "{{ cluster_id }}"
+    command: >
+      bash -c "
+      if [ ! -f /var/lib/kafka/data/meta.properties ]; then
+        kafka-storage format -t {{ cluster_id }} -c /etc/kafka/kraft-controller.properties --ignore-formatted;
+      fi;
+      exec kafka-server-start /etc/kafka/kraft-controller.properties
+      "

@@ -1,0 +1,10 @@
+---
+kafka_image: "docker.io/confluentinc/cp-kafka:7.9.0"
+cluster_id: "4L62215-QC20p4m13R8O9g" # Généré via kafka-storage.sh random-cluster-id
+
+zk_connect: "zk1:2181,zk2:2181,zk3:2181"
+controller_quorum_voters: "1@kraft1:9093,2@kraft2:9093,3@kraft3:9093"
+
+ssl_cert_dir: "/etc/kafka/secrets"
+ssl_keystore_password: "KeystorePassword"
+ssl_truststore_password: "TruststorePassword"

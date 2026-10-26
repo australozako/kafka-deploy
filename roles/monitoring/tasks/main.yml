@@ -1,0 +1,16 @@
+---
+- name: Déployer le conteneur Kafbat UI
+  community.docker.docker_container:
+    name: kafbat-ui
+    image: ghcr.io/kafbat/kafka-ui:latest
+    state: started
+    restart_policy: unless-stopped
+    recreate: yes
+    published_ports:
+      - "8080:8080"
+    env:
+      KAFKA_CLUSTERS_0_NAME: "KRaft-Cluster-Local"
+      # Connexion aux brokers via l'IP passerelle Docker
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "172.17.0.1:9092,172.17.0.1:9096,172.17.0.1:9088"
+      # Connexion directe aux contrôleurs KRaft pour la métrique du Quorum
+      KAFKA_CLUSTERS_0_KRAFT_BOOTSTRAPSERVERS: "172.17.0.1:9093,172.17.0.1:9094,172.17.0.1:9095"

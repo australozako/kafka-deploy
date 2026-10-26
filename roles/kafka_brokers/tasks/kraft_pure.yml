@@ -1,0 +1,52 @@
+---
+- name: Calculer le port du Broker
+  ansible.builtin.set_fact:
+    broker_port: "{{ 9092 if (broker_id | int) == 101 else (9085 + (broker_id | int - 100)) }}"
+
+- name: Définir les variables d'environnement de base (Phase KRaft pure)
+  ansible.builtin.set_fact:
+    broker_env_pure:
+      KAFKA_BROKER_ID: "{{ broker_id | string }}"
+      KAFKA_ZOOKEEPER_CONNECT: "{{ zk_connect | default('172.17.0.1:2181') }}"
+      KAFKA_ZOOKEEPER_METADATA_MIGRATION_ENABLE: "false"
+      
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "{{ controller_quorum_voters }}"
+
+      KAFKA_LISTENERS: "CLIENT://0.0.0.0:9092"
+      KAFKA_ADVERTISED_LISTENERS: "CLIENT://172.17.0.1:{{ broker_port }}"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CLIENT:{{ kafka_security_protocol }},CONTROLLER:{{ kafka_security_protocol }}"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "CLIENT"
+
+- name: Injecter la configuration SSL (si activée)
+  ansible.builtin.set_fact:
+    broker_env_ssl: >-
+      {{
+        {
+          'KAFKA_SSL_KEYSTORE_LOCATION': ssl_cert_dir ~ '/kafka.broker.keystore.jks',
+          'KAFKA_SSL_KEYSTORE_PASSWORD': ssl_keystore_password,
+          'KAFKA_SSL_KEY_PASSWORD': ssl_keystore_password,
+          'KAFKA_SSL_TRUSTSTORE_LOCATION': ssl_cert_dir ~ '/kafka.truststore.jks',
+          'KAFKA_SSL_TRUSTSTORE_PASSWORD': ssl_truststore_password,
+          'KAFKA_SSL_CLIENT_AUTH': 'required'
+        } if kafka_ssl_enabled else {}
+      }}
+
+- name: Redémarrer le conteneur Broker Kafka en mode KRaft pur
+  community.docker.docker_container:
+    name: "kafka-broker-{{ broker_id }}"
+    image: "{{ kafka_image }}"
+    state: started
+    restart_policy: unless-stopped
+    recreate: yes
+    published_ports:
+      - "{{ broker_port }}:9092"
+    volumes: >-
+      {{
+        [
+          '/var/lib/kafka/broker-' ~ broker_id ~ '/data:/var/lib/kafka/data'
+        ] + (
+          ['/var/lib/kafka/secrets:' ~ ssl_cert_dir ~ ':ro'] if kafka_ssl_enabled else []
+        )
+      }}
+    env: "{{ broker_env_pure | combine(broker_env_ssl | default({})) }}"

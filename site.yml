@@ -1,0 +1,17 @@
+# 1. Déploiement des contrôleurs KRaft temporaires
+- name: Déploiement des contrôleurs KRaft
+  hosts: kraft_controllers
+  become: true
+  roles:
+    - kraft_controllers
+
+# 2. Migration progressive des brokers (rolling-update séquentiel)
+- name: Migration des Brokers vers le mode Dual-Bridge
+  hosts: kafka_brokers
+  become: true
+  serial: 1
+  vars:
+    migration_phase: "dual"
+  roles:
+    - kafka_brokers
+

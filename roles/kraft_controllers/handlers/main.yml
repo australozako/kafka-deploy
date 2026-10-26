@@ -1,0 +1,7 @@
+---
+- name: Restart kraft controller
+  community.docker.docker_container:
+    name: "kraft-controller-{{ node_id }}"
+    image: "{{ kafka_image }}"
+    state: started
+    restart: true

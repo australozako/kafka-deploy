@@ -1,0 +1,13 @@
+---
+kafka_image: "docker.io/confluentinc/cp-kafka:7.9.0"
+cluster_id: "4L62215-QC20p4m13R8O9g"
+
+zk_connect: "zk1.prod.domain.local:2181,zk2.prod.domain.local:2181,zk3.prod.domain.local:2181"
+controller_quorum_voters: "1@kraft1.prod.domain.local:9093,2@kraft2.prod.domain.local:9093,3@kraft3.prod.domain.local:9093"
+
+kafka_security_protocol: "SSL"
+kafka_ssl_enabled: true
+
+ssl_cert_dir: "/etc/kafka/secrets"
+ssl_keystore_password: "KeystorePasswordProd"
+ssl_truststore_password: "TruststorePasswordProd"
