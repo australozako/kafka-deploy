@@ -10,3 +10,20 @@ controller_quorum_voters: "1@172.17.0.1:9093,2@172.17.0.1:9094,3@172.17.0.1:9095
 # Développement local en PLAINTEXT
 kafka_security_protocol: "PLAINTEXT"
 kafka_ssl_enabled: false
+
+
+# Changer cette variable à chaque étape : phase0 | phase1 | phase2 | phase3
+migration_phase: "phase0"
+
+# Récupéré automatiquement par Ansible dès la phase 1 (ou à renseigner en dur après récupération)
+kafka_cluster_id: ""
+
+# Réseau & SSL
+kafka_advertised_host: "localhost"
+certs_dir: "{{ playbook_dir }}/certs"
+
+# Identifiants SSL (fichiers présents dans certs_dir)
+broker_keystore: "kafka.broker.keystore.jks"
+broker_truststore: "kafka.broker.truststore.jks"
+controller_keystore: "kafka.controller.keystore.jks"
+controller_truststore: "kafka.controller.truststore.jks"

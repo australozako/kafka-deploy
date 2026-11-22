@@ -1,0 +1,198 @@
+services:
+{% if migration_phase in ['phase0', 'phase1', 'phase2'] %}
+{% for i in [1, 2, 3] %}
+  zookeeper-{{ i }}:
+    image: confluentinc/cp-zookeeper:7.9.6
+    container_name: zookeeper-{{ i }}
+    hostname: zookeeper-{{ i }}
+    restart: unless-stopped
+    ports:
+      - "{{ 2180 + i }}:2181"
+    volumes:
+      - zk_data_{{ i }}:/var/lib/zookeeper/data
+      - zk_log_{{ i }}:/var/lib/zookeeper/log
+    environment:
+      ZOOKEEPER_SERVER_ID: {{ i }}
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: "zookeeper-1:2888:3888;zookeeper-2:2888:3888;zookeeper-3:2888:3888"
+{% endfor %}
+{% endif %}
+
+{% if migration_phase in ['phase1', 'phase2', 'phase3'] %}
+{% for i in [1, 2, 3] %}
+  kafka-controller-{{ i }}:
+    image: confluentinc/cp-kafka:7.9.6
+    container_name: kafka-controller-{{ i }}
+    hostname: kafka-controller-{{ i }}
+    restart: unless-stopped
+    ports:
+      - "{{ 9092 + i }}:9093"
+    volumes:
+      - "{{ certs_dir }}:/etc/kafka/secrets:ro"
+      - controller_data_{{ i }}:/var/lib/kafka/data
+    environment:
+      CLUSTER_ID: "{{ detected_cluster_id }}"
+      KAFKA_NODE_ID: {{ 100 + i }}
+      KAFKA_PROCESS_ROLES: "controller"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "101@kafka-controller-1:9093,102@kafka-controller-2:9093,103@kafka-controller-3:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENERS: "CONTROLLER://:9093"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:SSL,SSL_INTERNAL:SSL"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "SSL_INTERNAL"
+
+      # SSL Global explicite (requis par RequestSendThread / QuorumController)
+      KAFKA_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka-controller-{{ i }}.keystore.jks"
+      KAFKA_SSL_KEYSTORE_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_SSL_KEY_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka.truststore.jks"
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_SSL_KEYSTORE_FILENAME: "kafka-controller-{{ i }}.keystore.jks"
+      KAFKA_SSL_KEYSTORE_CREDENTIALS: "keystore_creds"
+      KAFKA_SSL_KEY_CREDENTIALS: "key_creds"
+      KAFKA_SSL_TRUSTSTORE_FILENAME: "kafka.truststore.jks"
+      KAFKA_SSL_TRUSTSTORE_CREDENTIALS: "truststore_creds"
+      KAFKA_SSL_CLIENT_AUTH: "required"
+      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+
+      # SSL Listener CONTROLLER
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka-controller-{{ i }}.keystore.jks"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEYSTORE_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEY_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka.truststore.jks"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_TRUSTSTORE_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_CLIENT_AUTH: "required"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+
+      # SSL Connexion sortante vers les brokers via SSL_INTERNAL
+      KAFKA_LISTENER_NAME_SSL_INTERNAL_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka-controller-{{ i }}.keystore.jks"
+      KAFKA_LISTENER_NAME_SSL_INTERNAL_SSL_KEYSTORE_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_LISTENER_NAME_SSL_INTERNAL_SSL_KEY_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_LISTENER_NAME_SSL_INTERNAL_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka.truststore.jks"
+      KAFKA_LISTENER_NAME_SSL_INTERNAL_SSL_TRUSTSTORE_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_LISTENER_NAME_SSL_INTERNAL_SSL_CLIENT_AUTH: "required"
+      KAFKA_LISTENER_NAME_SSL_INTERNAL_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+
+{% if migration_phase in ['phase1', 'phase2'] %}
+      KAFKA_ZOOKEEPER_METADATA_MIGRATION_ENABLE: "true"
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181"
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% for i in [1, 2, 3] %}
+  kafka-{{ i }}:
+    image: confluentinc/cp-kafka:7.9.6
+    container_name: kafka-{{ i }}
+    hostname: kafka-{{ i }}
+    restart: unless-stopped
+{% if migration_phase in ['phase0', 'phase1', 'phase2'] %}
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+{% endif %}
+    ports:
+      - "{{ 8992 + (i * 100) }}:9092"
+    volumes:
+      - "{{ certs_dir }}:/etc/kafka/secrets:ro"
+      - broker_data_{{ i }}:/var/lib/kafka/data
+    environment:
+      KAFKA_LISTENERS: "SSL://:9092,SSL_INTERNAL://:29092"
+      KAFKA_ADVERTISED_LISTENERS: "SSL://{{ kafka_advertised_host }}:{{ 8992 + (i * 100) }},SSL_INTERNAL://kafka-{{ i }}:29092"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "SSL_INTERNAL"
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+
+      # Configuration SSL Broker
+      KAFKA_SSL_KEYSTORE_FILENAME: "kafka-{{ i }}.keystore.jks"
+      KAFKA_SSL_KEYSTORE_CREDENTIALS: "keystore_creds"
+      KAFKA_SSL_KEY_CREDENTIALS: "key_creds"
+      KAFKA_SSL_TRUSTSTORE_FILENAME: "kafka.truststore.jks"
+      KAFKA_SSL_TRUSTSTORE_CREDENTIALS: "truststore_creds"
+      KAFKA_SSL_CLIENT_AUTH: "required"
+      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+
+{% if migration_phase in ['phase0', 'phase1'] %}
+      KAFKA_BROKER_ID: {{ i }}
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "SSL:SSL,SSL_INTERNAL:SSL"
+
+{% elif migration_phase == 'phase2' %}
+      KAFKA_BROKER_ID: {{ i }}
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181"
+      KAFKA_ZOOKEEPER_METADATA_MIGRATION_ENABLE: "true"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "101@kafka-controller-1:9093,102@kafka-controller-2:9093,103@kafka-controller-3:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "SSL:SSL,SSL_INTERNAL:SSL,CONTROLLER:SSL"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka-{{ i }}.keystore.jks"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEYSTORE_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEY_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka.truststore.jks"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_TRUSTSTORE_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+
+{% elif migration_phase == 'phase3' %}
+      CLUSTER_ID: "{{ detected_cluster_id }}"
+      KAFKA_NODE_ID: {{ i }}
+      KAFKA_PROCESS_ROLES: "broker"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "101@kafka-controller-1:9093,102@kafka-controller-2:9093,103@kafka-controller-3:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "SSL:SSL,SSL_INTERNAL:SSL,CONTROLLER:SSL"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka-{{ i }}.keystore.jks"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEYSTORE_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEY_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka.truststore.jks"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_TRUSTSTORE_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_LISTENER_NAME_CONTROLLER_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+{% endif %}
+{% endfor %}
+
+  kafbat-ui:
+    image: ghcr.io/kafbat/kafka-ui:latest
+    container_name: kafbat-ui
+    restart: unless-stopped
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
+    ports:
+      - "8080:8080"
+    volumes:
+      - "{{ certs_dir }}:/etc/kafka/secrets:ro"
+    environment:
+      DYNAMIC_CONFIG_ENABLED: "true"
+      KAFKA_CLUSTERS_0_NAME: "ha-migration-cluster"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka-1:29092,kafka-2:29092,kafka-3:29092"
+      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: "SSL"
+      KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_LOCATION: "/etc/kafka/secrets/kafka.truststore.jks"
+      KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_CLUSTERS_0_PROPERTIES_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka.client.keystore.jks"
+      KAFKA_CLUSTERS_0_PROPERTIES_SSL_KEYSTORE_PASSWORD: "{{ ssl_password | default('changeit') }}"
+      KAFKA_CLUSTERS_0_PROPERTIES_SSL_KEY_PASSWORD: "{{ ssl_password | default('changeit') }}"
+{% if migration_phase in ['phase0', 'phase1', 'phase2'] %}
+      KAFKA_CLUSTERS_0_ZOOKEEPER: "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181"
+{% endif %}
+
+volumes:
+{% if migration_phase in ['phase0', 'phase1', 'phase2'] %}
+  zk_data_1:
+  zk_data_2:
+  zk_data_3:
+  zk_log_1:
+  zk_log_2:
+  zk_log_3:
+{% endif %}
+{% if migration_phase in ['phase1', 'phase2', 'phase3'] %}
+  controller_data_1:
+  controller_data_2:
+  controller_data_3:
+{% endif %}
+  broker_data_1:
+  broker_data_2:
+  broker_data_3:

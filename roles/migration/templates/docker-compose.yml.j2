@@ -1,0 +1,119 @@
+version: "3.8"
+
+services:
+{% if migration_phase in ['phase0', 'phase1', 'phase2'] %}
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.9.6
+    container_name: zookeeper
+    hostname: zookeeper
+    restart: unless-stopped
+    ports:
+      - "2181:2181"
+    volumes:
+      - zk_data:/var/lib/zookeeper/data
+      - zk_log:/var/lib/zookeeper/log
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+{% endif %}
+
+{% if migration_phase in ['phase1', 'phase2', 'phase3'] %}
+  kafka-controller:
+    image: confluentinc/cp-kafka:7.9.6
+    container_name: kafka-controller
+    hostname: kafka-controller
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - "{{ certs_dir }}:/etc/kafka/secrets:ro"
+      - controller_data:/var/lib/kafka/data
+    environment:
+      CLUSTER_ID: "{{ detected_cluster_id }}"
+      KAFKA_NODE_ID: 101
+      KAFKA_PROCESS_ROLES: "controller"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "101@kafka-controller:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENERS: "CONTROLLER://:9093"
+      KAFKA_ADVERTISED_LISTENERS: "CONTROLLER://kafka-controller:9093"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:SSL"
+
+      # Configuration SSL Contrôleur
+      KAFKA_SSL_KEYSTORE_FILENAME: "{{ controller_keystore }}"
+      KAFKA_SSL_KEYSTORE_CREDENTIALS: "keystore_creds"
+      KAFKA_SSL_KEY_CREDENTIALS: "key_creds"
+      KAFKA_SSL_TRUSTSTORE_FILENAME: "{{ controller_truststore }}"
+      KAFKA_SSL_TRUSTSTORE_CREDENTIALS: "truststore_creds"
+      KAFKA_SSL_CLIENT_AUTH: "required"
+
+{% if migration_phase in ['phase1', 'phase2'] %}
+      # Pont ZooKeeper actif uniquement pendant la migration
+      KAFKA_ZOOKEEPER_METADATA_MIGRATION_ENABLE: "true"
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+{% endif %}
+{% endif %}
+
+  kafka:
+    image: confluentinc/cp-kafka:7.9.6
+    container_name: kafka
+    hostname: kafka
+    restart: unless-stopped
+{% if migration_phase in ['phase0', 'phase1', 'phase2'] %}
+    depends_on:
+      - zookeeper
+{% endif %}
+    ports:
+      - "9092:9092"
+    volumes:
+      - "{{ certs_dir }}:/etc/kafka/secrets:ro"
+      - broker_data:/var/lib/kafka/data
+    environment:
+      KAFKA_LISTENERS: "SSL://:9092"
+      KAFKA_ADVERTISED_LISTENERS: "SSL://{{ kafka_advertised_host }}:9092"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "SSL"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      # Configuration SSL Broker
+      KAFKA_SSL_KEYSTORE_FILENAME: "{{ broker_keystore }}"
+      KAFKA_SSL_KEYSTORE_CREDENTIALS: "keystore_creds"
+      KAFKA_SSL_KEY_CREDENTIALS: "key_creds"
+      KAFKA_SSL_TRUSTSTORE_FILENAME: "{{ broker_truststore }}"
+      KAFKA_SSL_TRUSTSTORE_CREDENTIALS: "truststore_creds"
+      KAFKA_SSL_CLIENT_AUTH: "required"
+
+{% if migration_phase in ['phase0', 'phase1'] %}
+      # PHASE 0 & 1 : Mode ZooKeeper pur (Existant)
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "SSL:SSL"
+
+{% elif migration_phase == 'phase2' %}
+      # PHASE 2 : Mode Dual Write (Broker ZK relié au Contrôleur KRaft)
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_ZOOKEEPER_METADATA_MIGRATION_ENABLE: "true"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "101@kafka-controller:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "SSL:SSL,CONTROLLER:SSL"
+
+{% elif migration_phase == 'phase3' %}
+      # PHASE 3 : Mode KRaft pur (ZooKeeper supprimé)
+      CLUSTER_ID: "{{ detected_cluster_id }}"
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: "broker"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "101@kafka-controller:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "SSL:SSL,CONTROLLER:SSL"
+{% endif %}
+
+volumes:
+{% if migration_phase in ['phase0', 'phase1', 'phase2'] %}
+  zk_data:
+  zk_log:
+{% endif %}
+{% if migration_phase in ['phase1', 'phase2', 'phase3'] %}
+  controller_data:
+{% endif %}
+  broker_data:

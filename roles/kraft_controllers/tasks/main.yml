@@ -54,6 +54,7 @@
       }}
     env:
       KAFKA_CLUSTER_ID: "{{ cluster_id }}"
+      CLUSTER_ID: "{{ cluster_id }}"
     command: >
       bash -c "
       if [ ! -f /var/lib/kafka/data/meta.properties ]; then

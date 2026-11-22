@@ -1,0 +1,151 @@
+---
+- name: Migration Kafka Single-Node ZooKeeper vers KRaft + Kafbat UI
+  hosts: kafka_cluster
+  become: false
+  vars:
+    migration_phase: "phase0"
+    certs_dir: "{{ playbook_dir }}/certs"
+    controller_keystore: "kafka.controller.keystore.jks"
+    controller_truststore: "kafka.controller.truststore.jks"
+    broker_keystore: "kafka.broker.keystore.jks"
+    broker_truststore: "kafka.broker.truststore.jks"
+    project_dir: "{{ playbook_dir }}"
+    cluster_id_file: "{{ playbook_dir }}/.cluster_id"
+
+  tasks:
+    - name: Créer le répertoire de projet et de certificats
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ project_dir }}"
+        - "{{ certs_dir }}"
+
+    - name: Vérifier si la PKI Single-Node est déjà générée
+      ansible.builtin.stat:
+        path: "{{ certs_dir }}/kafka.client.keystore.jks"
+      register: single_certs_stat
+
+    - name: Générer les certificats mTLS Single-Node si absents
+      ansible.builtin.command:
+        cmd: ./generate-certs-single.sh
+        chdir: "{{ playbook_dir }}"
+      when: not single_certs_stat.stat.exists
+
+    # Récupération du CLUSTER_ID depuis le cache local ou ZooKeeper
+    - name: Vérifier si le fichier .cluster_id existe déjà
+      ansible.builtin.stat:
+        path: "{{ cluster_id_file }}"
+      register: cluster_id_stat
+
+    - name: Lire le CLUSTER_ID depuis le cache local (.cluster_id)
+      ansible.builtin.slurp:
+        src: "{{ cluster_id_file }}"
+      register: cached_cluster_id_raw
+      when: cluster_id_stat.stat.exists
+
+    - name: Récupérer le Cluster ID depuis ZooKeeper (si non encore mis en cache)
+      ansible.builtin.shell: >
+        docker exec zookeeper zookeeper-shell localhost:2181 get /cluster/id 2>/dev/null
+        | grep -o '"id":"[^"]*"' | cut -d'"' -f4
+      register: zk_cluster_id_cmd
+      when:
+        - migration_phase in ['phase1', 'phase2', 'phase3']
+        - (kafka_cluster_id | default('')) == ""
+        - not cluster_id_stat.stat.exists
+      changed_when: false
+
+    - name: Définir la variable detected_cluster_id
+      ansible.builtin.set_fact:
+        detected_cluster_id: >-
+          {{
+            (kafka_cluster_id | default(''))
+            if (kafka_cluster_id | default('')) != ''
+            else (
+              (cached_cluster_id_raw.content | b64decode | trim)
+              if cluster_id_stat.stat.exists
+              else (zk_cluster_id_cmd.stdout | default('') | trim)
+            )
+          }}
+
+    - name: Vérifier que le CLUSTER_ID est présent pour KRaft
+      ansible.builtin.fail:
+        msg: "CLUSTER_ID introuvable ! Renseignez kafka_cluster_id ou vérifiez .cluster_id / ZooKeeper."
+      when:
+        - migration_phase in ['phase1', 'phase2', 'phase3']
+        - detected_cluster_id == ""
+
+    - name: Sauvegarder le CLUSTER_ID localement pour les phases suivantes
+      ansible.builtin.copy:
+        content: "{{ detected_cluster_id }}"
+        dest: "{{ cluster_id_file }}"
+        mode: "0644"
+      when:
+        - migration_phase in ['phase1', 'phase2', 'phase3']
+        - detected_cluster_id != ""
+
+    - name: Afficher le Cluster ID utilisé
+      ansible.builtin.debug:
+        msg: "Exécution de {{ migration_phase }} avec CLUSTER_ID = {{ detected_cluster_id }}"
+      when: migration_phase != 'phase0'
+
+    # Génération et déploiement Docker Compose
+    - name: Générer le fichier docker-compose-single.yml pour {{ migration_phase }}
+      ansible.builtin.template:
+        src: templates/docker-compose-single.yml.j2
+        dest: "{{ project_dir }}/docker-compose-single.yml"
+        mode: "0644"
+
+    - name: Appliquer la stack Docker Compose ({{ migration_phase }})
+      ansible.builtin.command:
+        cmd: docker compose -f docker-compose-single.yml up -d --remove-orphans
+        chdir: "{{ playbook_dir }}"
+      register: compose_output
+
+    # --- VÉRIFICATION KAFBAT UI (HTTP + CONNEXION RÉELLE AU BROKER mTLS) ---
+    - name: Vérifier que Kafbat UI répond et voit le cluster ONLINE
+      ansible.builtin.uri:
+        url: "http://localhost:8080/api/clusters"
+        return_content: true
+        status_code: 200
+      register: kafbat_clusters
+      retries: 20
+      delay: 3
+      until: >
+        kafbat_clusters.status == 200 and
+        '"status":"ONLINE"' in (kafbat_clusters.content | replace(' ', ''))
+
+    # --- VÉRIFICATIONS PAR PHASE ---
+    - name: "[Phase 1] Vérifier que le contrôleur attend les brokers"
+      ansible.builtin.shell: "docker logs kafka-controller 2>&1 | grep -i 'waiting for brokers to register'"
+      register: phase1_check
+      retries: 10
+      delay: 3
+      until: phase1_check.rc == 0
+      when: migration_phase == 'phase1'
+
+    - name: "[Phase 2] Vérifier l'activation du mode Dual Write (Broker Observer 1 enregistré)"
+      ansible.builtin.command: >
+        docker exec kafka-controller kafka-metadata-quorum
+        --bootstrap-controller kafka-controller:9093
+        --command-config /etc/kafka/secrets/client-ssl.properties
+        describe --status
+      register: phase2_quorum
+      retries: 15
+      delay: 2
+      until: >-
+        phase2_quorum.rc == 0 and ('"id": 1,' in phase2_quorum.stdout)
+      when: migration_phase == 'phase2'
+
+    - name: "[Phase 3] Vérifier l'état du Quorum KRaft autonome"
+      ansible.builtin.command: >
+        docker exec kafka-controller kafka-metadata-quorum
+        --bootstrap-controller kafka-controller:9093
+        --command-config /etc/kafka/secrets/client-ssl.properties
+        describe --status
+      register: phase3_check
+      retries: 10
+      delay: 3
+      until: phase3_check.rc == 0
+      when: migration_phase == 'phase3'
