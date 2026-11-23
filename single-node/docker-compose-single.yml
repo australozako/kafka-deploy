@@ -11,7 +11,7 @@ services:
       - "/mnt/c/Users/sirib/kafka-deploy/single-node/certs:/etc/kafka/secrets:ro"
       - controller_data:/var/lib/kafka/data
     environment:
-      CLUSTER_ID: "VnZfUptiRm2uLEU-fLkdOA"
+      CLUSTER_ID: "MEu7iq-2QwSDZAt89_Dmow"
       KAFKA_NODE_ID: 101
       KAFKA_PROCESS_ROLES: "controller"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "101@kafka-controller:9093"
@@ -33,6 +33,12 @@ services:
       KAFKA_SSL_TRUSTSTORE_FILENAME: "kafka.controller.truststore.jks"
       KAFKA_SSL_TRUSTSTORE_CREDENTIALS: "truststore_creds"
       KAFKA_SSL_CLIENT_AUTH: "required"
+      # --- AUTHORIZER & ACLs mTLS ---
+      KAFKA_AUTHORIZER_CLASS_NAME: "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
+      KAFKA_SSL_PRINCIPAL_MAPPING_RULES: "RULE:.*CN=([^,]*).*$/$1/,DEFAULT"
+      KAFKA_SUPER_USERS: "User:kafka.client;User:Kafka-Internal-CA;User:localhost;User:kafka-admin;User:kafka-controller;User:kafka;User:kafka-1;User:kafka-2;User:kafka-3;User:kafka-controller-1;User:kafka-controller-2;User:kafka-controller-3;User:client"
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "false"
+
 
       # SSL Listener CONTROLLER
       KAFKA_LISTENER_NAME_CONTROLLER_SSL_KEYSTORE_LOCATION: "/etc/kafka/secrets/kafka.controller.keystore.jks"
@@ -79,11 +85,17 @@ services:
       KAFKA_SSL_TRUSTSTORE_FILENAME: "kafka.broker.truststore.jks"
       KAFKA_SSL_TRUSTSTORE_CREDENTIALS: "truststore_creds"
       KAFKA_SSL_CLIENT_AUTH: "required"
+      # --- AUTHORIZER & ACLs mTLS ---
+      KAFKA_AUTHORIZER_CLASS_NAME: "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
+      KAFKA_SSL_PRINCIPAL_MAPPING_RULES: "RULE:.*CN=([^,]*).*$/$1/,DEFAULT"
+      KAFKA_SUPER_USERS: "User:kafka.client;User:Kafka-Internal-CA;User:localhost;User:kafka-admin;User:kafka-controller;User:kafka;User:kafka-1;User:kafka-2;User:kafka-3;User:kafka-controller-1;User:kafka-controller-2;User:kafka-controller-3;User:client"
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "false"
+
       KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
       KAFKA_LISTENER_NAME_SSL_INTERNAL_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
 
       # PHASE 3 : Mode KRaft pur (ZooKeeper supprimé)
-      CLUSTER_ID: "VnZfUptiRm2uLEU-fLkdOA"
+      CLUSTER_ID: "MEu7iq-2QwSDZAt89_Dmow"
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: "broker"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "101@kafka-controller:9093"

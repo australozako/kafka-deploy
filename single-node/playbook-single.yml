@@ -149,3 +149,31 @@
       delay: 3
       until: phase3_check.rc == 0
       when: migration_phase == 'phase3'
+
+    # --- GESTION & VÉRIFICATION DES ACLs mTLS ---
+    - name: Appliquer les ACLs mTLS applicatives sur le topic orders
+      ansible.builtin.command: >
+        docker exec kafka kafka-acls
+        --bootstrap-server kafka:29092
+        --command-config /etc/kafka/secrets/client-ssl.properties
+        --add
+        --allow-principal "User:{{ item.principal }}"
+        --operation {{ item.operation }}
+        {{ item.resource_flag }} "{{ item.resource_name }}"
+      loop:
+        - { principal: "app-producer", operation: "Write", resource_flag: "--topic", resource_name: "orders" }
+        - { principal: "app-producer", operation: "Describe", resource_flag: "--topic", resource_name: "orders" }
+        - { principal: "app-consumer", operation: "Read", resource_flag: "--topic", resource_name: "orders" }
+        - { principal: "app-consumer", operation: "Read", resource_flag: "--group", resource_name: "*" }
+      register: acl_apply
+      changed_when: "'Adding ACLs' in acl_apply.stdout"
+
+    - name: Lister et valider les ACLs mTLS enregistrées
+      ansible.builtin.command: >
+        docker exec kafka kafka-acls
+        --bootstrap-server kafka:29092
+        --command-config /etc/kafka/secrets/client-ssl.properties
+        --list
+      register: acl_list
+      changed_when: false
+      failed_when: "'User:app-producer' not in acl_list.stdout or 'User:app-consumer' not in acl_list.stdout"

@@ -55,6 +55,16 @@ services:
       KAFKA_SSL_TRUSTSTORE_FILENAME: "kafka.truststore.jks"
       KAFKA_SSL_TRUSTSTORE_CREDENTIALS: "truststore_creds"
       KAFKA_SSL_CLIENT_AUTH: "required"
+      # --- AUTHORIZER & ACLs mTLS ---
+{% if migration_phase in ['phase0', 'phase1', 'phase2'] %}
+      KAFKA_AUTHORIZER_CLASS_NAME: "kafka.security.authorizer.AclAuthorizer"
+{% elif migration_phase == 'phase3' %}
+      KAFKA_AUTHORIZER_CLASS_NAME: "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
+{% endif %}
+      KAFKA_SSL_PRINCIPAL_MAPPING_RULES: "RULE:.*CN=([^,]*).*$/$1/,DEFAULT"
+      KAFKA_SUPER_USERS: "User:kafka.client;User:Kafka-Internal-CA;User:localhost;User:kafka-admin;User:kafka-controller;User:kafka;User:kafka-1;User:kafka-2;User:kafka-3;User:kafka-controller-1;User:kafka-controller-2;User:kafka-controller-3;User:client"
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "false"
+
       KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
 
       # SSL Listener CONTROLLER
@@ -116,6 +126,16 @@ services:
       KAFKA_SSL_TRUSTSTORE_FILENAME: "kafka.truststore.jks"
       KAFKA_SSL_TRUSTSTORE_CREDENTIALS: "truststore_creds"
       KAFKA_SSL_CLIENT_AUTH: "required"
+      # --- AUTHORIZER & ACLs mTLS ---
+{% if migration_phase in ['phase0', 'phase1', 'phase2'] %}
+      KAFKA_AUTHORIZER_CLASS_NAME: "kafka.security.authorizer.AclAuthorizer"
+{% elif migration_phase == 'phase3' %}
+      KAFKA_AUTHORIZER_CLASS_NAME: "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
+{% endif %}
+      KAFKA_SSL_PRINCIPAL_MAPPING_RULES: "RULE:.*CN=([^,]*).*$/$1/,DEFAULT"
+      KAFKA_SUPER_USERS: "User:kafka.client;User:Kafka-Internal-CA;User:localhost;User:kafka-admin;User:kafka-controller;User:kafka;User:kafka-1;User:kafka-2;User:kafka-3;User:kafka-controller-1;User:kafka-controller-2;User:kafka-controller-3;User:client"
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "false"
+
       KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
 
 {% if migration_phase in ['phase0', 'phase1'] %}

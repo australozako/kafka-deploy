@@ -11,7 +11,7 @@ services:
       - "/mnt/c/Users/sirib/kafka-deploy/certs:/etc/kafka/secrets:ro"
       - controller_data_1:/var/lib/kafka/data
     environment:
-      CLUSTER_ID: "NcSwyzJGQvi51H_9imXICA"
+      CLUSTER_ID: "T4sdYMoIRUqoq5kOcl_-8w"
       KAFKA_NODE_ID: 101
       KAFKA_PROCESS_ROLES: "controller"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "101@kafka-controller-1:9093,102@kafka-controller-2:9093,103@kafka-controller-3:9093"
@@ -32,6 +32,12 @@ services:
       KAFKA_SSL_TRUSTSTORE_FILENAME: "kafka.truststore.jks"
       KAFKA_SSL_TRUSTSTORE_CREDENTIALS: "truststore_creds"
       KAFKA_SSL_CLIENT_AUTH: "required"
+      # --- AUTHORIZER & ACLs mTLS ---
+      KAFKA_AUTHORIZER_CLASS_NAME: "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
+      KAFKA_SSL_PRINCIPAL_MAPPING_RULES: "RULE:.*CN=([^,]*).*$/$1/,DEFAULT"
+      KAFKA_SUPER_USERS: "User:kafka.client;User:Kafka-Internal-CA;User:localhost;User:kafka-admin;User:kafka-controller;User:kafka;User:kafka-1;User:kafka-2;User:kafka-3;User:kafka-controller-1;User:kafka-controller-2;User:kafka-controller-3;User:client"
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "false"
+
       KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
 
       # SSL Listener CONTROLLER
@@ -63,7 +69,7 @@ services:
       - "/mnt/c/Users/sirib/kafka-deploy/certs:/etc/kafka/secrets:ro"
       - controller_data_2:/var/lib/kafka/data
     environment:
-      CLUSTER_ID: "NcSwyzJGQvi51H_9imXICA"
+      CLUSTER_ID: "T4sdYMoIRUqoq5kOcl_-8w"
       KAFKA_NODE_ID: 102
       KAFKA_PROCESS_ROLES: "controller"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "101@kafka-controller-1:9093,102@kafka-controller-2:9093,103@kafka-controller-3:9093"
@@ -84,6 +90,12 @@ services:
       KAFKA_SSL_TRUSTSTORE_FILENAME: "kafka.truststore.jks"
       KAFKA_SSL_TRUSTSTORE_CREDENTIALS: "truststore_creds"
       KAFKA_SSL_CLIENT_AUTH: "required"
+      # --- AUTHORIZER & ACLs mTLS ---
+      KAFKA_AUTHORIZER_CLASS_NAME: "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
+      KAFKA_SSL_PRINCIPAL_MAPPING_RULES: "RULE:.*CN=([^,]*).*$/$1/,DEFAULT"
+      KAFKA_SUPER_USERS: "User:kafka.client;User:Kafka-Internal-CA;User:localhost;User:kafka-admin;User:kafka-controller;User:kafka;User:kafka-1;User:kafka-2;User:kafka-3;User:kafka-controller-1;User:kafka-controller-2;User:kafka-controller-3;User:client"
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "false"
+
       KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
 
       # SSL Listener CONTROLLER
@@ -115,7 +127,7 @@ services:
       - "/mnt/c/Users/sirib/kafka-deploy/certs:/etc/kafka/secrets:ro"
       - controller_data_3:/var/lib/kafka/data
     environment:
-      CLUSTER_ID: "NcSwyzJGQvi51H_9imXICA"
+      CLUSTER_ID: "T4sdYMoIRUqoq5kOcl_-8w"
       KAFKA_NODE_ID: 103
       KAFKA_PROCESS_ROLES: "controller"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "101@kafka-controller-1:9093,102@kafka-controller-2:9093,103@kafka-controller-3:9093"
@@ -136,6 +148,12 @@ services:
       KAFKA_SSL_TRUSTSTORE_FILENAME: "kafka.truststore.jks"
       KAFKA_SSL_TRUSTSTORE_CREDENTIALS: "truststore_creds"
       KAFKA_SSL_CLIENT_AUTH: "required"
+      # --- AUTHORIZER & ACLs mTLS ---
+      KAFKA_AUTHORIZER_CLASS_NAME: "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
+      KAFKA_SSL_PRINCIPAL_MAPPING_RULES: "RULE:.*CN=([^,]*).*$/$1/,DEFAULT"
+      KAFKA_SUPER_USERS: "User:kafka.client;User:Kafka-Internal-CA;User:localhost;User:kafka-admin;User:kafka-controller;User:kafka;User:kafka-1;User:kafka-2;User:kafka-3;User:kafka-controller-1;User:kafka-controller-2;User:kafka-controller-3;User:client"
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "false"
+
       KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
 
       # SSL Listener CONTROLLER
@@ -184,9 +202,15 @@ services:
       KAFKA_SSL_TRUSTSTORE_FILENAME: "kafka.truststore.jks"
       KAFKA_SSL_TRUSTSTORE_CREDENTIALS: "truststore_creds"
       KAFKA_SSL_CLIENT_AUTH: "required"
+      # --- AUTHORIZER & ACLs mTLS ---
+      KAFKA_AUTHORIZER_CLASS_NAME: "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
+      KAFKA_SSL_PRINCIPAL_MAPPING_RULES: "RULE:.*CN=([^,]*).*$/$1/,DEFAULT"
+      KAFKA_SUPER_USERS: "User:kafka.client;User:Kafka-Internal-CA;User:localhost;User:kafka-admin;User:kafka-controller;User:kafka;User:kafka-1;User:kafka-2;User:kafka-3;User:kafka-controller-1;User:kafka-controller-2;User:kafka-controller-3;User:client"
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "false"
+
       KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
 
-      CLUSTER_ID: "NcSwyzJGQvi51H_9imXICA"
+      CLUSTER_ID: "T4sdYMoIRUqoq5kOcl_-8w"
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: "broker"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "101@kafka-controller-1:9093,102@kafka-controller-2:9093,103@kafka-controller-3:9093"
@@ -225,9 +249,15 @@ services:
       KAFKA_SSL_TRUSTSTORE_FILENAME: "kafka.truststore.jks"
       KAFKA_SSL_TRUSTSTORE_CREDENTIALS: "truststore_creds"
       KAFKA_SSL_CLIENT_AUTH: "required"
+      # --- AUTHORIZER & ACLs mTLS ---
+      KAFKA_AUTHORIZER_CLASS_NAME: "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
+      KAFKA_SSL_PRINCIPAL_MAPPING_RULES: "RULE:.*CN=([^,]*).*$/$1/,DEFAULT"
+      KAFKA_SUPER_USERS: "User:kafka.client;User:Kafka-Internal-CA;User:localhost;User:kafka-admin;User:kafka-controller;User:kafka;User:kafka-1;User:kafka-2;User:kafka-3;User:kafka-controller-1;User:kafka-controller-2;User:kafka-controller-3;User:client"
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "false"
+
       KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
 
-      CLUSTER_ID: "NcSwyzJGQvi51H_9imXICA"
+      CLUSTER_ID: "T4sdYMoIRUqoq5kOcl_-8w"
       KAFKA_NODE_ID: 2
       KAFKA_PROCESS_ROLES: "broker"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "101@kafka-controller-1:9093,102@kafka-controller-2:9093,103@kafka-controller-3:9093"
@@ -266,9 +296,15 @@ services:
       KAFKA_SSL_TRUSTSTORE_FILENAME: "kafka.truststore.jks"
       KAFKA_SSL_TRUSTSTORE_CREDENTIALS: "truststore_creds"
       KAFKA_SSL_CLIENT_AUTH: "required"
+      # --- AUTHORIZER & ACLs mTLS ---
+      KAFKA_AUTHORIZER_CLASS_NAME: "org.apache.kafka.metadata.authorizer.StandardAuthorizer"
+      KAFKA_SSL_PRINCIPAL_MAPPING_RULES: "RULE:.*CN=([^,]*).*$/$1/,DEFAULT"
+      KAFKA_SUPER_USERS: "User:kafka.client;User:Kafka-Internal-CA;User:localhost;User:kafka-admin;User:kafka-controller;User:kafka;User:kafka-1;User:kafka-2;User:kafka-3;User:kafka-controller-1;User:kafka-controller-2;User:kafka-controller-3;User:client"
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "false"
+
       KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
 
-      CLUSTER_ID: "NcSwyzJGQvi51H_9imXICA"
+      CLUSTER_ID: "T4sdYMoIRUqoq5kOcl_-8w"
       KAFKA_NODE_ID: 3
       KAFKA_PROCESS_ROLES: "broker"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "101@kafka-controller-1:9093,102@kafka-controller-2:9093,103@kafka-controller-3:9093"
